@@ -1,0 +1,51 @@
+.link-input form {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.link-input input {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  border: 1px solid var(--neutral-300);
+  border-radius: 0.5rem;
+}
+
+.link-input input:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.link-input button {
+  padding: 0.75rem 2rem;
+  background-color: var(--primary-color);
+  color: white;
+  font-weight: 500;
+  border-radius: 0.5rem;
+  white-space: nowrap;
+}
+
+.link-input button:hover:not(:disabled) {
+  background-color: var(--primary-dark);
+}
+
+.link-input button:disabled {
+  background-color: var(--neutral-300);
+  cursor: not-allowed;
+}
+
+.link-input .hint {
+  color: var(--neutral-600);
+  font-size: 0.875rem;
+}
+
+@media (max-width: 640px) {
+  .link-input form {
+    flex-direction: column;
+  }
+
+  .link-input button {
+    width: 100%;
+  }
+}
