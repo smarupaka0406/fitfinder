@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import logging
 from flask_cors import CORS
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
@@ -6,7 +7,10 @@ import os
 import time
 import random
 
-load_dotenv()
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
@@ -16,53 +20,39 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
 
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-app.config['MAX_CONTENT_LENGTH'] = MAX_FILE_SIZE
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@app.route('/api/health', methods=['GET'])
-def health():
-    return jsonify({'status': 'healthy'}), 200
-
-@app.route('/api/search', methods=['POST'])
 def search():
+    logger.info(f"/api/search called. Method: {request.method}, Content-Type: {request.content_type}")
     try:
         # Check if it's an image upload or link submission
         has_file = 'image' in request.files
         has_link = 'link' in request.form or (request.is_json and 'link' in request.get_json(silent=True) or {})
 
+        logger.info(f"has_file: {has_file}, has_link: {has_link}")
+
         if has_file:
-            # Handle image upload
             file = request.files['image']
-            
+            logger.info(f"Received file: {file.filename}")
             if file.filename == '':
+                logger.warning("No file selected for upload.")
                 return jsonify({
                     'success': False,
                     'error': 'No file selected'
                 }), 400
-            
             if not allowed_file(file.filename):
+                logger.warning(f"Invalid file type: {file.filename}")
                 return jsonify({
                     'success': False,
                     'error': 'Invalid file type. Allowed: jpg, jpeg, png, gif, webp'
                 }), 400
-            
-            # Save the uploaded file
             filename = secure_filename(file.filename)
             timestamp = int(time.time() * 1000)
             filename = f"{timestamp}_{filename}"
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
-            
-            # Generate mock results for the uploaded image
+            logger.info(f"File saved to: {filepath}")
             seed = timestamp % 1000000
             results = _generate_mock_results(seed)
-            
+            logger.info(f"Returning mock results for image upload.")
             return jsonify({
                 'success': True,
                 'results': results,
@@ -76,29 +66,25 @@ def search():
                     'similarity': 100
                 }
             }), 200
-            
         elif has_link:
-            # Handle link submission
             link_data = request.get_json(silent=True) or {}
             link = link_data.get('link') or request.form.get('link')
-            
+            logger.info(f"Received link: {link}")
             if not link:
+                logger.warning("No link provided in request.")
                 return jsonify({
                     'success': False,
                     'error': 'No link provided'
                 }), 400
-            
-            # Validate link format
             if not link.startswith(('http://', 'https://')):
+                logger.warning(f"Invalid link format: {link}")
                 return jsonify({
                     'success': False,
                     'error': 'Invalid link. Must start with http:// or https://'
                 }), 400
-            
-            # Generate mock results for the link
             seed = int(time.time() * 1000) % 1000000
             results = _generate_mock_results(seed)
-            
+            logger.info(f"Returning mock results for link submission.")
             return jsonify({
                 'success': True,
                 'results': results,
@@ -109,6 +95,21 @@ def search():
                     'price': 0,
                     'image': 'https://picsum.photos/300/400?random=original',
                     'link': link,
+                    'similarity': 100
+                }
+            }), 200
+        else:
+            logger.warning("Neither image nor link provided in request.")
+            return jsonify({
+                'success': False,
+                'error': 'Please provide either an image file or a link'
+            }), 400
+    except Exception as e:
+        logger.error(f"Error in /api/search: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Search failed: {str(e)}'
+        }), 500
                     'similarity': 100
                 }
             }), 200
