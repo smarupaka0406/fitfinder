@@ -110,14 +110,6 @@ def search():
             'success': False,
             'error': f'Search failed: {str(e)}'
         }), 500
-                    'similarity': 100
-                }
-            }), 200
-        else:
-            return jsonify({
-                'success': False,
-                'error': 'Please provide either an image file or a link'
-            }), 400
             
     except Exception as e:
         print(f"Error: {str(e)}")
