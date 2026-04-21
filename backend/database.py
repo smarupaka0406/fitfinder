@@ -7,6 +7,8 @@ Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
 def init_db():
+    import models  # noqa: F401
+
     Base.metadata.create_all(engine)
     print("Database initialized")
 

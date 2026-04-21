@@ -210,18 +210,3 @@
     font-size: 1.2rem;
   }
 }
-
-  .result-item img {
-    width: 200px;
-    height: 200px;
-  }
-
-  .result-actions {
-    width: 100%;
-    flex-direction: row;
-  }
-
-  .result-actions .view-btn {
-    flex: 1;
-  }
-}

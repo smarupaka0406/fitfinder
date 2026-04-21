@@ -7,6 +7,12 @@ import os
 import time
 import random
 
+from catalog_import import import_shopify_feeds
+from catalog_matching import refresh_catalog_matches
+from database import init_db
+from database import get_session
+from models import CatalogProduct, CatalogProductMatch
+
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
@@ -14,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
+load_dotenv()
+init_db()
 
 # Configuration
 UPLOAD_FOLDER = 'uploads'
@@ -32,6 +40,100 @@ def allowed_file(filename):
 @app.route('/api/health', methods=['GET'])
 def health():
     return jsonify({'status': 'healthy'}), 200
+
+
+@app.route('/api/catalog/import', methods=['POST'])
+def import_catalog():
+    payload = request.get_json(silent=True) or {}
+    urls = payload.get('urls') or [
+        'https://www.allbirds.com/products.json',
+        'https://www.gymshark.com/products.json',
+        'https://kith.com/products.json',
+    ]
+
+    try:
+        summary = import_shopify_feeds(urls)
+        return jsonify({'success': True, 'summary': summary}), 200
+    except Exception as exc:
+        logger.error('Catalog import failed: %s', exc, exc_info=True)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
+
+@app.route('/api/catalog/matches/refresh', methods=['POST'])
+def refresh_catalog_match_index():
+    session = get_session()
+    try:
+        summary = refresh_catalog_matches(session)
+        session.commit()
+        return jsonify({'success': True, 'summary': summary}), 200
+    except Exception as exc:
+        session.rollback()
+        logger.error('Catalog match refresh failed: %s', exc, exc_info=True)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+    finally:
+        session.close()
+
+
+@app.route('/api/catalog/products', methods=['GET'])
+def list_catalog_products():
+    session = get_session()
+    try:
+        query = session.query(CatalogProduct).filter(CatalogProduct.is_active.is_(True))
+
+        retailer = request.args.get('retailer')
+        category = request.args.get('category')
+        gender = request.args.get('gender')
+        search = request.args.get('search')
+        limit = min(max(int(request.args.get('limit', 24)), 1), 100)
+
+        if retailer:
+            query = query.filter(CatalogProduct.retailer == retailer)
+        if category:
+            query = query.filter(CatalogProduct.category == category)
+        if gender:
+            query = query.filter(CatalogProduct.gender == gender)
+        if search:
+            like_value = f"%{search.lower()}%"
+            query = query.filter(CatalogProduct.normalized_title.like(like_value))
+
+        products = query.order_by(CatalogProduct.updated_at.desc()).limit(limit).all()
+        return jsonify({'success': True, 'products': [_serialize_product_summary(product) for product in products]}), 200
+    finally:
+        session.close()
+
+
+@app.route('/api/catalog/products/<path:product_id>', methods=['GET'])
+def get_catalog_product(product_id):
+    session = get_session()
+    try:
+        product = session.get(CatalogProduct, product_id)
+        if product is None:
+            return jsonify({'success': False, 'error': 'Product not found'}), 404
+
+        return jsonify({'success': True, 'product': _serialize_product_detail(product)}), 200
+    finally:
+        session.close()
+
+
+@app.route('/api/catalog/products/<path:product_id>/matches', methods=['GET'])
+def get_catalog_product_matches(product_id):
+    session = get_session()
+    try:
+        matches = (
+            session.query(CatalogProductMatch)
+            .filter(CatalogProductMatch.left_product_id == product_id)
+            .order_by(CatalogProductMatch.final_score.desc())
+            .limit(50)
+            .all()
+        )
+        return jsonify(
+            {
+                'success': True,
+                'matches': [_serialize_match(match) for match in matches],
+            }
+        ), 200
+    finally:
+        session.close()
 
 @app.route('/api/search', methods=['POST'])
 def search():
@@ -178,6 +280,81 @@ def _generate_mock_results(seed):
         })
     
     return mock_results
+
+
+def _serialize_product_summary(product):
+    return {
+        'id': product.id,
+        'retailer': product.retailer,
+        'title': product.title,
+        'brand': product.brand,
+        'category': product.category,
+        'subcategory': product.subcategory,
+        'gender': product.gender,
+        'colorPrimary': product.color_primary,
+        'priceMin': product.price_min,
+        'priceMax': product.price_max,
+        'heroImageUrl': product.hero_image_url,
+        'productUrl': product.product_url,
+        'updatedAt': product.updated_at.isoformat() if product.updated_at else None,
+    }
+
+
+def _serialize_product_detail(product):
+    return {
+        **_serialize_product_summary(product),
+        'handle': product.handle,
+        'productType': product.product_type,
+        'descriptionText': product.description_text,
+        'descriptionHtml': product.description_html,
+        'material': product.material,
+        'colorRaw': product.color_raw,
+        'tags': product.tags or [],
+        'compareAtPriceMin': product.compare_at_price_min,
+        'compareAtPriceMax': product.compare_at_price_max,
+        'currency': product.currency,
+        'imageCount': product.image_count,
+        'variants': [
+            {
+                'id': variant.id,
+                'sourceVariantId': variant.source_variant_id,
+                'sku': variant.sku,
+                'title': variant.title,
+                'sizeValue': variant.size_value,
+                'colorValue': variant.color_value,
+                'price': variant.price,
+                'compareAtPrice': variant.compare_at_price,
+                'available': variant.available,
+                'position': variant.position,
+            }
+            for variant in product.variants
+        ],
+        'images': [
+            {
+                'id': image.id,
+                'sourceImageId': image.source_image_id,
+                'imageUrl': image.image_url,
+                'position': image.position,
+                'width': image.width,
+                'height': image.height,
+                'isPrimary': image.is_primary,
+            }
+            for image in product.images
+        ],
+    }
+
+
+def _serialize_match(match):
+    return {
+        'id': match.id,
+        'matchStatus': match.match_status,
+        'imageScore': match.image_score,
+        'textScore': match.text_score,
+        'priceScore': match.price_score,
+        'attributeScore': match.attribute_score,
+        'finalScore': match.final_score,
+        'product': _serialize_product_summary(match.right_product),
+    }
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
