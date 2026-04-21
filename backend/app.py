@@ -20,6 +20,16 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 MAX_FILE_SIZE = 16 * 1024 * 1024  # 16MB
 
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+@app.route('/api/health', methods=['GET'])
+def health():
+    return jsonify({'status': 'healthy'}), 200
+
+
+@app.route('/api/search', methods=['POST'])
 def search():
     logger.info(f"/api/search called. Method: {request.method}, Content-Type: {request.content_type}")
     try:
@@ -106,13 +116,6 @@ def search():
             }), 400
     except Exception as e:
         logger.error(f"Error in /api/search: {str(e)}", exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': f'Search failed: {str(e)}'
-        }), 500
-            
-    except Exception as e:
-        print(f"Error: {str(e)}")
         return jsonify({
             'success': False,
             'error': f'Search failed: {str(e)}'
