@@ -7,5 +7,5 @@ Pillow>=10.0.0
 ImageHash>=4.3.1
 # Optional semantic search (CLIP). Python 3.11/3.12 recommended.
 transformers>=4.46,<4.48
-torch>=2.2,<2.3
+torch>=2.2
 numpy<2
