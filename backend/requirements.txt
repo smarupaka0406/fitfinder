@@ -8,7 +8,7 @@ ImageHash==4.3.2
 Werkzeug==3.1.8
 numpy==1.26.4
 # CLIP image matching
-onnxruntime>=1.17.0
+onnxruntime>=1.16.0
 # Optional: full CLIP/transformers pipeline
 transformers==4.47.1
 torch==2.2.2
