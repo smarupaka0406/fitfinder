@@ -1,5 +1,12 @@
 node_modules/
 .git/
+venv/
+venv311/
+__pycache__/
+*.pyc
+*.onnx
+_tmp_*.jpg
+_tmp_*.png
 .next/
 .env
 .env.local

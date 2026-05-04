@@ -3,3 +3,9 @@ flask-cors>=4.0.0
 python-dotenv>=1.0.0
 sqlalchemy>=2.0.0
 requests>=2.31.0
+Pillow>=10.0.0
+ImageHash>=4.3.1
+# Optional semantic search (CLIP). Python 3.11/3.12 recommended.
+transformers>=4.46,<4.48
+torch>=2.2,<2.3
+numpy<2
