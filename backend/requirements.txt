@@ -11,4 +11,4 @@ numpy==1.26.4
 onnxruntime>=1.16.0
 # Optional: full CLIP/transformers pipeline
 transformers==4.47.1
-torch==2.2.2
+torch>=2.2
