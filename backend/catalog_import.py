@@ -1,27 +1,11 @@
-from __future__ import annotations
-
+from typing import Any
 from datetime import datetime
 import re
-from typing import Any
 from urllib.parse import urlparse
 
 import requests
 
 from models import CatalogProduct
-
-
-DEFAULT_FEEDS = [
-    'https://www.allbirds.com/products.json',
-    'https://www.gymshark.com/products.json',
-    'https://kith.com/products.json',
-]
-
-USER_AGENT = (
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
-    'AppleWebKit/537.36 (KHTML, like Gecko) '
-    'Chrome/135.0.0.0 Safari/537.36'
-)
-
 
 def import_shopify_feeds(session, urls: list[str] | None = None) -> dict[str, Any]:
     feeds = urls or DEFAULT_FEEDS
@@ -30,6 +14,8 @@ def import_shopify_feeds(session, urls: list[str] | None = None) -> dict[str, An
         'imported_products': 0,
         'errors': [],
     }
+
+    from typing import Any
 
     for url in feeds:
         retailer = _retailer_name_from_url(url)
@@ -49,6 +35,20 @@ def import_shopify_feeds(session, urls: list[str] | None = None) -> dict[str, An
 
     return summary
 
+
+
+
+DEFAULT_FEEDS = [
+    'https://www.allbirds.com/products.json',
+    'https://www.gymshark.com/products.json',
+    'https://kith.com/products.json',
+]
+
+USER_AGENT = (
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) '
+    'AppleWebKit/537.36 (KHTML, like Gecko) '
+    'Chrome/135.0.0.0 Safari/537.36'
+)
 
 def _fetch_products(url: str) -> list[dict[str, Any]]:
     response = requests.get(
@@ -144,7 +144,7 @@ def _categorize_product(title: str, product_type: str, tags: list[str]) -> str:
     haystack = ' '.join([title, product_type, *tags]).lower()
     if any(term in haystack for term in ['tee', 'shirt', 'top', 'tank', 'blouse', 'crop']):
         return 'top'
-    if any(term in haystack for term in ['legging', 'pant', 'jean', 'short']):
+    if any(term in haystack for term in ['legging', 'pant', 'jean', 'short', 'skirt', 'dress']):
         return 'bottom'
     if any(term in haystack for term in ['shoe', 'sneaker', 'runner', 'sandal', 'slipper']):
         return 'footwear'
